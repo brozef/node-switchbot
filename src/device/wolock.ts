@@ -157,42 +157,48 @@ export class WoLock extends SwitchbotDevice {
         return this._iv;
       }
 
-  _operateLock(key, encrypt = true) {
-    return new Promise<void>(async (resolve, reject) => {
-      let req_buf;
-      if (!encrypt) {
-        req_buf = Buffer.concat([
-          key.substring(0,2), "000000", key.substring(2)
-        ]);
-      } else {
-        const iv = await this._getIv();
-        req_buf = Buffer.concat([
-          key.substring(0,2), this._key_id, Buffer.from(iv.substring(0,2)).toString('hex'), this._encrypt(key.substring(2))
-        ]);
+      async _buildRequest(key, encrypt) {
+        let req_buf;
+        if (!encrypt) {
+          req_buf = Buffer.concat([
+            key.substring(0, 2), "000000", key.substring(2)
+          ]);
+        } else {
+          const iv = await this._getIv();
+          req_buf = Buffer.concat([
+            key.substring(0, 2), this._key_id, Buffer.from(iv.substring(0, 2)).toString('hex'), this._encrypt(key.substring(2))
+          ]);
+        }
+        return req_buf;
       }
 
-      this._command(req_buf)
-        .then((res_buf: unknown) => {
-          console.log((res_buf as Buffer).toString());
-          const code = (res_buf as Buffer).readUInt8(0);
-          if ((res_buf as Buffer).length === 3 && code === 0x01) {
-            let res;
-            if (encrypt) {
-              res = Buffer.concat([(res_buf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]);
-            } else {
-              res = res_buf;
-            }
-            resolve(res);
-          } else {
-            reject(
-              new Error(
-                "The device returned an error: 0x" + (res_buf as Buffer).toString("hex")
-              )
-            );
-          }
-        })
-        .catch((error) => {
-          reject(error);
+  _operateLock(key, encrypt = true) {
+    return new Promise<void>((resolve, reject) => {
+      this._buildRequest(key, encrypt)
+        .then(req_buf => {
+          this._command(req_buf)
+            .then((res_buf: unknown) => {
+              console.log((res_buf as Buffer).toString());
+              const code = (res_buf as Buffer).readUInt8(0);
+              if ((res_buf as Buffer).length === 3 && code === 0x01) {
+                let res;
+                if (encrypt) {
+                  res = Buffer.concat([(res_buf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]);
+                } else {
+                  res = res_buf;
+                }
+                resolve(res);
+              } else {
+                reject(
+                  new Error(
+                    "The device returned an error: 0x" + (res_buf as Buffer).toString("hex")
+                  )
+                );
+              }
+            })
+            .catch((error) => {
+              reject(error);
+            });
         });
     });
   }
