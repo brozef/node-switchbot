@@ -540,10 +540,10 @@ export class Advertising {
   }
 
   static parseServiceDataForWoSmartLock(manufacturerData, onlog) {
-    if (manufacturerData.length !== 6) {
+    if (manufacturerData.length !== 12) {
       if (onlog && typeof onlog === 'function') {
         onlog(
-          `[parseServiceDataForWoSmartLock] Buffer length ${manufacturerData.length} !== 6!`,
+          `[parseServiceDataForWoSmartLock] Buffer length ${manufacturerData.length} !== 12!`,
         );
       }
       return null;
