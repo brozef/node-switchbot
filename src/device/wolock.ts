@@ -19,13 +19,12 @@ export class WoLock extends SwitchbotDevice {
 
   constructor(peripheral, noble) {
     super(peripheral, noble);
-    console.log('LOCK!');
     this._iv = null;
   }
 
   setKey(keyId, encryptionKey) {
     this._key_id = keyId;
-    this._encryption_key = encryptionKey;
+    this._encryption_key = Buffer.from(encryptionKey, 'hex');
   }
 
   /* ------------------------------------------------------------------
@@ -154,21 +153,21 @@ export class WoLock extends SwitchbotDevice {
         if (this._iv == null) {
             this._iv = await this._operateLock(WoLock.COMMAND_GET_CK_IV + this._key_id, false);
         }
-        return this._iv;
+        return this._iv.subarray(4);
       }
 
   _operateLock(key, encrypt = true) {
     return new Promise<void>(async (resolve, reject) => {
       let req_buf;
       if (!encrypt) {
-        req_buf = Buffer.concat([
-          key.substring(0,2), "000000", key.substring(2)
-        ]);
+        req_buf = Buffer.from(
+          key.substring(0,2) + "000000" + key.substring(2), 'hex'
+        );
       } else {
         const iv = await this._getIv();
-        req_buf = Buffer.concat([
-          key.substring(0,2), this._key_id, Buffer.from(iv.substring(0,2)).toString('hex'), this._encrypt(key.substring(2))
-        ]);
+        req_buf = Buffer.from(
+          key.substring(0,2) + this._key_id + Buffer.from(iv.subarray(0,2)).toString('hex') + this._encrypt(key.substring(2))
+        , 'hex');
       }
 
       this._command(req_buf)

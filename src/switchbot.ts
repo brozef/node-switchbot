@@ -13,6 +13,8 @@ import { WoHumi } from './device/wohumi.js';
 import { WoPlugMini } from './device/woplugmini.js';
 import { WoBulb } from './device/wobulb.js';
 import { WoStrip } from './device/wostrip.js';
+import { WoLock } from './device/wolock.js';
+
 type params = {
     duration?: number,
     model?: string,
@@ -178,9 +180,8 @@ export class SwitchBot {
             for (const addr in peripherals) {
               device_list.push(peripherals[addr]);
             }
-            if (device_list.length) {
-              resolve(device_list);
-            }
+
+            resolve(device_list);
           };
 
           // Set a handler for the 'discover' event
@@ -201,7 +202,6 @@ export class SwitchBot {
               return;
             }
           });
-
           // Start scanning
           this.noble.startScanning(
             this.PRIMARY_SERVICE_UUID_LIST,
@@ -300,7 +300,7 @@ export class SwitchBot {
             device = new WoPlugMini(peripheral, this.noble);
             break;
           case 'o':
-          //device = new SwitchbotDeviceWoSmartLock(peripheral, this.noble);
+            device = new WoLock(peripheral, this.noble);
             break;
           case 'i':
             device = new WoSensorTH(peripheral, this.noble);
