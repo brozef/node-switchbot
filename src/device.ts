@@ -46,6 +46,8 @@ export class SwitchbotDevice {
 
     this._SERV_UUID_PRIMARY = 'cba20d00224d11e69fb80002a5d5c51b';
     this._CHAR_UUID_WRITE = 'cba20002224d11e69fb80002a5d5c51b';
+    this._CHAR_UUID_NOTIFY = 'cba20003224d11e69fb80002a5d5c51b';
+    
     // Save the device information
     const ad: ad = Advertising.parse(peripheral);
     this._id = ad ? ad.id : null;
