@@ -55,10 +55,10 @@ export class SwitchbotDevice {
 
     // Save the device information
     const ad: ad = Advertising.parse(peripheral);
-    this._id = ad?.id;
-    this._address = ad?.address;
-    this._model = ad?.serviceData.model;
-    this._modelName = ad?.serviceData.modelName;
+    this._id = ad ? ad.id : null;
+    this._address = ad ? ad.address : null;
+    this._model = ad ? ad.serviceData.model : null;
+    this._modelName = ad ? ad.serviceData.modelName : null;
 
     this._was_connected_explicitly = false;
     this._connected = false;
