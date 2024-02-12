@@ -115,9 +115,9 @@ export class WoSmartLock extends SwitchbotDevice {
    * - Promise object
    *   Nothing will be passed to the `resolve()`.
    * ---------------------------------------------------------------- */
-    unlock_no_unlatch() {
-      return this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH);
-    }
+  unlock_no_unlatch() {
+    return this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH);
+  }
 
   /* ------------------------------------------------------------------
    * lock()
