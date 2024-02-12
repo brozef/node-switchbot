@@ -152,7 +152,7 @@ export class WoLock extends SwitchbotDevice {
   }
 
   _operateLock(key, encrypt = true) {
-    return new Promise<void>(async (resolve, reject) => {
+    return new Promise<Buffer>(async (resolve, reject) => {
       let req_buf;
 
       if (!encrypt) {
@@ -169,7 +169,7 @@ export class WoLock extends SwitchbotDevice {
       this._command(req_buf)
         .then((res_buf: unknown) => {
           const code = (res_buf as Buffer).readUInt8(0);
-          if (code === 0x01) {
+          if (code === 0x01 || code === 0x06) { //06 is ok but low battery
             let res;
             if (encrypt) {
               res = Buffer.concat([(res_buf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]);
