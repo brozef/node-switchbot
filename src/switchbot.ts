@@ -13,7 +13,7 @@ import { WoHumi } from './device/wohumi.js';
 import { WoPlugMini } from './device/woplugmini.js';
 import { WoBulb } from './device/wobulb.js';
 import { WoStrip } from './device/wostrip.js';
-import { WoLock } from './device/wolock.js';
+import { WoSmartLock } from './device/wosmartlock.js';
 
 type params = {
   duration?: number,
@@ -300,7 +300,7 @@ export class SwitchBot {
             device = new WoPlugMini(peripheral, this.noble);
             break;
           case 'o':
-            device = new WoLock(peripheral, this.noble);
+            device = new WoSmartLock(peripheral, this.noble);
             break;
           case 'i':
             device = new WoSensorTH(peripheral, this.noble);
