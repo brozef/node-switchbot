@@ -73,14 +73,24 @@ export class WoLock extends SwitchbotDevice {
     this._iv = null;
   }
 
+    /* ------------------------------------------------------------------
+   * setKey()
+   * - initialise the encryption key info for valid lock communication, this currently must be retrived externally 
+   *
+   * [Arguments]
+   * - keyId, encryptionKey
+   *
+   * [Return value]
+   * - void
+   * ---------------------------------------------------------------- */
   setKey(keyId, encryptionKey) {
     this._key_id = keyId;
     this._encryption_key = Buffer.from(encryptionKey, 'hex');
   }
 
   /* ------------------------------------------------------------------
-   * open()
-   * - Open the curtain
+   * unlock()
+   * - Unlock the Smart Lock
    *
    * [Arguments]
    * - none
@@ -94,8 +104,8 @@ export class WoLock extends SwitchbotDevice {
   }
 
   /* ------------------------------------------------------------------
-   * close()
-   * - close the curtain
+   * lock()
+   * - Lock the Smart Lock
    *
    * [Arguments]
    * - none
@@ -108,13 +118,24 @@ export class WoLock extends SwitchbotDevice {
     return this._operateLock(WoLock.COMMAND_LOCK);
   }
 
+    /* ------------------------------------------------------------------
+   * info()
+   * - Get general state info from the Smart Lock
+   *
+   * [Arguments]
+   * - none
+   *
+   * [Return value]
+   * - Promise object
+   *   resolves buffer to be parsed
+   * ---------------------------------------------------------------- */
   info() {
     return this._operateLock(WoLock.COMMAND_LOCK_INFO);
   }
   
   _encrypt(str) {
     const cipher = Crypto.createCipheriv("aes-128-ctr", this._encryption_key, this._iv);
-    return Buffer.concat([cipher.update(str), cipher.final()]).toString('hex');
+    return Buffer.concat([cipher.update(str, 'hex'), cipher.final()]).toString('hex');
   }
 
   _decrypt(data) {
@@ -124,7 +145,7 @@ export class WoLock extends SwitchbotDevice {
 
   async _getIv() {
     if (this._iv == null) {
-        const res = await this._operateLock(WoLock.COMMAND_GET_CK_IV + this._key_id, false);
+        const res:Buffer = await this._operateLock(WoLock.COMMAND_GET_CK_IV + this._key_id, false);
         this._iv = res.subarray(4);
     }
     return this._iv;
@@ -133,6 +154,7 @@ export class WoLock extends SwitchbotDevice {
   _operateLock(key, encrypt = true) {
     return new Promise<void>(async (resolve, reject) => {
       let req_buf;
+
       if (!encrypt) {
         req_buf = Buffer.from(
           key.substring(0,2) + "000000" + key.substring(2), 'hex'
@@ -146,9 +168,8 @@ export class WoLock extends SwitchbotDevice {
 
       this._command(req_buf)
         .then((res_buf: unknown) => {
-          console.log((res_buf as Buffer).toString());
           const code = (res_buf as Buffer).readUInt8(0);
-          if ((res_buf as Buffer).length === 3 && code === 0x01) {
+          if (code === 0x01) {
             let res;
             if (encrypt) {
               res = Buffer.concat([(res_buf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]);
