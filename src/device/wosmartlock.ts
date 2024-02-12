@@ -17,8 +17,6 @@ export class WoSmartLock extends SwitchbotDevice {
   static COMMAND_UNLOCK = '570f4e01011080';
   static COMMAND_UNLOCK_NO_UNLATCH = '570f4e010110a0';
   static COMMAND_LOCK = '570f4e01011000';
-  static COMMAND_ENABLE_NOTIFICATIONS = '570e01001e00008101';
-  static COMMAND_DISABLE_NOTIFICATIONS = '570e00';
 
   static parseServiceData(manufacturerData, onlog) {
     if (manufacturerData.length !== 6) {
