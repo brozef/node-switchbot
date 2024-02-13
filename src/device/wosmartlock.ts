@@ -3,12 +3,13 @@
  * wosmartlock.ts: Switchbot BLE API registration.
  */
 import { SwitchbotDevice } from '../device.js';
+import { Peripheral } from '@abandonware/noble';
 import * as Crypto from 'crypto';
 
 export class WoSmartLock extends SwitchbotDevice {
-  _iv;
-  _key_id;
-  _encryption_key;
+  _iv:any;
+  _key_id:string;
+  _encryption_key:any;
 
   static COMMAND_GET_CK_IV = '570f2103';
   static COMMAND_LOCK_INFO = '570f4f8101';
@@ -22,13 +23,13 @@ export class WoSmartLock extends SwitchbotDevice {
     RESULT_SUCCESS_LOW_BATTERY: 0x06
   };
 
-  static parseLockResult(code)
+  static parseLockResult(code: number)
   {
-    if (code === WoSmartLock.LockResult.RESULT_SUCCESS) {
-      return WoSmartLock.LockResult.RESULT_SUCCESS;
-    }
-    else if (code == WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY) {
-      return WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY;
+    switch (code) {
+      case WoSmartLock.LockResult.RESULT_SUCCESS:
+        return WoSmartLock.LockResult.RESULT_SUCCESS;
+      case WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY:
+        return WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY;
     }
     return WoSmartLock.LockResult.ERROR;
   }
@@ -104,9 +105,11 @@ export class WoSmartLock extends SwitchbotDevice {
     return data;
   }
 
-  constructor(peripheral, noble) {
+  constructor(peripheral: Peripheral, noble: any) {
     super(peripheral, noble);
     this._iv = null;
+    this._key_id = '';
+    this._encryption_key = null;
   }
 
     /* ------------------------------------------------------------------
@@ -119,7 +122,7 @@ export class WoSmartLock extends SwitchbotDevice {
    * [Return value]
    * - void
    * ---------------------------------------------------------------- */
-  setKey(keyId, encryptionKey) {
+  setKey(keyId: string, encryptionKey: string) {
     this._iv = null;
     this._key_id = keyId;
     this._encryption_key = Buffer.from(encryptionKey, 'hex');
@@ -216,12 +219,12 @@ export class WoSmartLock extends SwitchbotDevice {
     });
   }
   
-  _encrypt(str) {
+  _encrypt(str:string) {
     const cipher = Crypto.createCipheriv("aes-128-ctr", this._encryption_key, this._iv);
     return Buffer.concat([cipher.update(str, 'hex'), cipher.final()]).toString('hex');
   }
 
-  _decrypt(data) {
+  _decrypt(data:Buffer) {
     const decipher = Crypto.createDecipheriv("aes-128-ctr", this._encryption_key, this._iv);
     return Buffer.concat([decipher.update(data), decipher.final()]);
   }
@@ -234,8 +237,8 @@ export class WoSmartLock extends SwitchbotDevice {
     return this._iv;
   }
 
-  _operateLock(key, encrypt = true) {
-    return new Promise<void>(async (resolve, reject) => {
+  _operateLock(key:string, encrypt:boolean = true) {
+    return new Promise<Buffer>(async (resolve, reject) => {
       let req_buf;
 
       if (!encrypt) {
@@ -259,7 +262,7 @@ export class WoSmartLock extends SwitchbotDevice {
             } else {
               res = res_buf;
             }
-            resolve(res);
+            resolve(res as Buffer);
           } else {
             reject(
               new Error(
