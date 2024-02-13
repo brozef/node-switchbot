@@ -1,7 +1,7 @@
-/* Copyright(C) 2024, donavanbecker (https://github.com/donavanbecker). All rights reserved.
- *
+/* 
  * wosmartlock.ts: Switchbot BLE API registration.
  */
+
 import { SwitchbotDevice } from '../device.js';
 import { Peripheral } from '@abandonware/noble';
 import * as Crypto from 'crypto';
@@ -34,6 +34,27 @@ export class WoSmartLock extends SwitchbotDevice {
     return WoSmartLock.LockResult.ERROR;
   }
 
+  static getLockStatus(code: number) {
+    switch (code) {
+        case 0b0000000:
+            return 'LOCKED';
+        case 0b0010000:
+            return 'UNLOCKED';
+        case 0b0100000:
+            return 'LOCKING';
+        case 0b0110000:
+            return 'UNLOCKING';
+        case 0b1000000:
+            return 'LOCKING_STOP';
+        case 0b1010000:
+            return 'UNLOCKING_STOP';
+        case 0b1100000:
+            return 'NOT_FULLY_LOCKED';
+        default:
+            return 'UNKNOWN';
+    }
+  }
+
   static parseServiceData(manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
     if (manufacturerData.length !== 12) {
       if (onlog && typeof onlog === 'function') {
@@ -47,27 +68,6 @@ export class WoSmartLock extends SwitchbotDevice {
     const byte7 = manufacturerData.readUInt8(7);
     const byte8 = manufacturerData.readUInt8(8);
 
-    function getStatus(code: number): string {
-      switch (code) {
-        case LockStatus.LOCKED:
-          return 'LOCKED';
-        case LockStatus.UNLOCKED:
-          return 'UNLOCKED';
-        case LockStatus.LOCKING:
-          return 'LOCKING';
-        case LockStatus.UNLOCKING:
-          return 'UNLOCKING';
-        case LockStatus.LOCKING_STOP:
-          return 'LOCKING_STOP';
-        case LockStatus.UNLOCKING_STOP:
-          return 'UNLOCKING_STOP';
-        case LockStatus.NOT_FULLY_LOCKED:
-          return 'NOT_FULLY_LOCKED';
-        default:
-          return 'UNKNOWN';
-      }
-    }
-
     const LockStatus = {
       LOCKED: 0b0000000,
       UNLOCKED: 0b0010000,
@@ -80,7 +80,7 @@ export class WoSmartLock extends SwitchbotDevice {
 
     const battery = byte2 & 0b01111111; // %
     const calibration = byte7 & 0b10000000 ? true : false;
-    const status = getStatus(byte7 & 0b01110000);
+    const status = WoSmartLock.getLockStatus(byte7 & 0b01110000);
     const update_from_secondary_lock = byte7 & 0b00001000 ? true : false;
     const door_open = byte7 & 0b00000100 ? true : false;
     const double_lock_mode = byte8 & 0b10000000 ? true : false;
@@ -212,7 +212,14 @@ export class WoSmartLock extends SwitchbotDevice {
     return new Promise((resolve, reject) => {
       this._operateLock(WoSmartLock.COMMAND_LOCK_INFO)
       .then(resBuf => {
-        resolve(WoSmartLock.parseServiceData(resBuf, () => {}));
+        const data ={
+          "calibration": Boolean(resBuf[1] & 0b10000000),
+          "status": WoSmartLock.getLockStatus((resBuf[1] & 0b01110000)),
+          "door_open": Boolean(resBuf[1] & 0b00000100),
+          "unclosed_alarm": Boolean(resBuf[2] & 0b00100000),
+          "unlocked_alarm": Boolean(resBuf[2] & 0b00010000),
+        };
+        resolve(data);
       }).catch((error) => {
         reject(error);
       });
