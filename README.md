@@ -8,7 +8,7 @@
 </span>
 
 The node-switchbot is a Node.js module which allows you to move your [Switchbot (Bot)'s](https://www.switch-bot.com/bot) arm
-and [Switchbot Curtain](https://www.switch-bot.com/products/switchbot-curtain),
+and [Switchbot Curtain](https://www.switch-bot.com/products/switchbot-curtain), operate your [Switchbot Lock](https://www.switch-bot.com/products/switchbot-lock),
 also monitor the temperature/humidity from [SwitchBot Thermometer & Hygrometer (Meter)](https://www.switch-bot.com/meter)
 as well as the status from [SwitchBot Motion Sensor](https://www.switch-bot.com/products/motion-sensor)
 and [SwitchBot Contact Sensor](https://www.switch-bot.com/products/contact-sensor)

@@ -135,8 +135,7 @@ export class WoSmartLock extends SwitchbotDevice {
     return new Promise<number>((resolve, reject) => {
       this._operateLock(WoSmartLock.COMMAND_UNLOCK)
       .then((resBuf) => {
-        const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.validateResponse(code));
+        resolve(WoSmartLock.validateResponse(resBuf));
       }).catch((error) => {
         reject(error);
       });
@@ -158,8 +157,7 @@ export class WoSmartLock extends SwitchbotDevice {
     return new Promise<number>((resolve, reject) => {
       this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH)
       .then((resBuf) => {
-        const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.validateResponse(code));
+        resolve(WoSmartLock.validateResponse(resBuf));
       }).catch((error) => {
         reject(error);
       });
@@ -181,8 +179,7 @@ export class WoSmartLock extends SwitchbotDevice {
     return new Promise<number>((resolve, reject) => {
       this._operateLock(WoSmartLock.COMMAND_LOCK)
       .then((resBuf) => {
-        const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.validateResponse(code));
+        resolve(WoSmartLock.validateResponse(resBuf));
       }).catch((error) => {
         reject(error);
       });
@@ -243,17 +240,18 @@ export class WoSmartLock extends SwitchbotDevice {
     , 'hex');
     
     try {
-      const res: unknown = await this._command(req);
-      const code = WoSmartLock.validateResponse((res as Buffer));
+      const bytes: unknown = await this._command(req);
+      const buf = Buffer.from(bytes as Uint8Array);
+      const code = WoSmartLock.validateResponse(buf);
 
       if (code != WoSmartLock.Result.ERROR) {
         return Buffer.concat(
-          [(res as Buffer).subarray(0, 1), this._decrypt((res as Buffer).subarray(4))]
+          [buf.subarray(0, 1), this._decrypt(buf.subarray(4))]
         );
       } else {
         throw (
           new Error(
-            "The device returned an error: 0x" + (res as Buffer).toString("hex")
+            "The device returned an error: 0x" + buf.toString("hex")
           )
         );
       }
@@ -271,12 +269,14 @@ export class WoSmartLock extends SwitchbotDevice {
     //unencypted command
     return new Promise<any>((resolve, reject) => {
       const req = Buffer.from(key.substring(0,2) + "000000" + key.substring(2), 'hex');
-      this._command(req).then(res => {
-        const code = WoSmartLock.validateResponse((res as Buffer));
+
+      this._command(req).then(bytes => {
+        const buf = Buffer.from(bytes as Uint8Array);
+        const code = WoSmartLock.validateResponse(buf);
 
         if (code != WoSmartLock.Result.ERROR) {
           reject(new Error(
-            "The device returned an error: 0x" + (res as Buffer).toString("hex")
+            "The device returned an error: 0x" + buf.toString("hex")
           ));
         }
       }).catch(error => {
