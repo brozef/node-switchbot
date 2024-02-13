@@ -2,7 +2,6 @@
  * wosmartlock.ts: Switchbot BLE API registration.
  * adapted off the work done by [pySwitchbot](https://github.com/Danielhiversen/pySwitchbot)
  */
-
 import { SwitchbotDevice } from '../device.js';
 import { Peripheral } from '@abandonware/noble';
 import * as Crypto from 'crypto';
@@ -18,23 +17,23 @@ export class WoSmartLock extends SwitchbotDevice {
   static COMMAND_UNLOCK_NO_UNLATCH = '570f4e010110a0';
   static COMMAND_LOCK = '570f4e01011000';
 
-  static CommandResult = {
+  static Result = {
     ERROR: 0x00,
-    RESULT_SUCCESS: 0x01,
-    RESULT_SUCCESS_LOW_BATTERY: 0x06
+    SUCCESS: 0x01,
+    SUCCESS_LOW_BATTERY: 0x06
   };
 
   static validateResponse(res: Buffer)
   {
     if (res.length >= 3) {
       switch (res.readUInt8(0)) {
-        case WoSmartLock.CommandResult.RESULT_SUCCESS:
-          return WoSmartLock.CommandResult.RESULT_SUCCESS;
-        case WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY:
-          return WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY;
+        case WoSmartLock.Result.SUCCESS:
+          return WoSmartLock.Result.SUCCESS;
+        case WoSmartLock.Result.SUCCESS_LOW_BATTERY:
+          return WoSmartLock.Result.SUCCESS_LOW_BATTERY;
       }
     }
-    return WoSmartLock.CommandResult.ERROR;
+    return WoSmartLock.Result.ERROR;
   }
 
   static getLockStatus(code: number) {
@@ -137,7 +136,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._operateLock(WoSmartLock.COMMAND_UNLOCK)
       .then((resBuf) => {
         const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.parseCommandResult(code));
+        resolve(WoSmartLock.validateResponse(code));
       }).catch((error) => {
         reject(error);
       });
@@ -160,7 +159,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH)
       .then((resBuf) => {
         const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.parseCommandResult(code));
+        resolve(WoSmartLock.validateResponse(code));
       }).catch((error) => {
         reject(error);
       });
@@ -183,7 +182,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._operateLock(WoSmartLock.COMMAND_LOCK)
       .then((resBuf) => {
         const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.parseCommandResult(code));
+        resolve(WoSmartLock.validateResponse(code));
       }).catch((error) => {
         reject(error);
       });
@@ -247,7 +246,7 @@ export class WoSmartLock extends SwitchbotDevice {
       const res: unknown = await this._command(req);
       const code = WoSmartLock.validateResponse((res as Buffer));
 
-      if (code != WoSmartLock.CommandResult.ERROR) {
+      if (code != WoSmartLock.Result.ERROR) {
         return Buffer.concat(
           [(res as Buffer).subarray(0, 1), this._decrypt((res as Buffer).subarray(4))]
         );
@@ -274,8 +273,8 @@ export class WoSmartLock extends SwitchbotDevice {
       const req = Buffer.from(key.substring(0,2) + "000000" + key.substring(2), 'hex');
       this._command(req).then(res => {
         const code = WoSmartLock.validateResponse((res as Buffer));
-        
-        if (code != WoSmartLock.CommandResult.ERROR) {
+
+        if (code != WoSmartLock.Result.ERROR) {
           reject(new Error(
             "The device returned an error: 0x" + (res as Buffer).toString("hex")
           ));
