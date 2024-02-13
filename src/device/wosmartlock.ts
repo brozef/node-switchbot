@@ -57,10 +57,10 @@ export class WoSmartLock extends SwitchbotDevice {
   }
 
   static parseServiceData(manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
-    if (manufacturerData.length !== 12) {
+    if (manufacturerData.length < 8) {
       if (onlog && typeof onlog === 'function') {
         onlog(
-          `[parseServiceDataForWoSmartLock] Buffer length ${manufacturerData.length} !== 12!`,
+          `[parseServiceDataForWoSmartLock] Buffer length ${manufacturerData.length} is too short!`,
         );
       }
       return null;
@@ -78,6 +78,7 @@ export class WoSmartLock extends SwitchbotDevice {
     const unclosed_alarm = byte8 & 0b00100000 ? true : false;
     const unlocked_alarm = byte8 & 0b00010000 ? true : false;
     const auto_lock_paused = byte8 & 0b00000010 ? true : false;
+    const night_latch = manufacturerData.length > 9 ? (manufacturerData.readUInt8(9) & 0b00000001 ? true : false) : false;
 
     const data = {
       model: 'o',
@@ -91,6 +92,7 @@ export class WoSmartLock extends SwitchbotDevice {
       unclosed_alarm: unclosed_alarm,
       unlocked_alarm: unlocked_alarm,
       auto_lock_paused: auto_lock_paused,
+      night_latch: night_latch,
     };
 
     return data;
