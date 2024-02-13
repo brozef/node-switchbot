@@ -1,5 +1,6 @@
 /* 
  * wosmartlock.ts: Switchbot BLE API registration.
+ * adapted off the work done by [pySwitchbot](https://github.com/Danielhiversen/pySwitchbot)
  */
 
 import { SwitchbotDevice } from '../device.js';
@@ -17,21 +18,21 @@ export class WoSmartLock extends SwitchbotDevice {
   static COMMAND_UNLOCK_NO_UNLATCH = '570f4e010110a0';
   static COMMAND_LOCK = '570f4e01011000';
 
-  static LockResult = {
+  static CommandResult = {
     ERROR: 0x00,
     RESULT_SUCCESS: 0x01,
     RESULT_SUCCESS_LOW_BATTERY: 0x06
   };
 
-  static parseLockResult(code: number)
+  static parseCommandResult(code: number)
   {
     switch (code) {
-      case WoSmartLock.LockResult.RESULT_SUCCESS:
-        return WoSmartLock.LockResult.RESULT_SUCCESS;
-      case WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY:
-        return WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY;
+      case WoSmartLock.CommandResult.RESULT_SUCCESS:
+        return WoSmartLock.CommandResult.RESULT_SUCCESS;
+      case WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY:
+        return WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY;
     }
-    return WoSmartLock.LockResult.ERROR;
+    return WoSmartLock.CommandResult.ERROR;
   }
 
   static getLockStatus(code: number) {
@@ -48,7 +49,7 @@ export class WoSmartLock extends SwitchbotDevice {
             return 'LOCKING_STOP';
         case 0b1010000:
             return 'UNLOCKING_STOP';
-        case 0b1100000:
+        case 0b1100000: //Only EU lock type
             return 'NOT_FULLY_LOCKED';
         default:
             return 'UNKNOWN';
@@ -67,16 +68,6 @@ export class WoSmartLock extends SwitchbotDevice {
     const byte2 = manufacturerData.readUInt8(2);
     const byte7 = manufacturerData.readUInt8(7);
     const byte8 = manufacturerData.readUInt8(8);
-
-    const LockStatus = {
-      LOCKED: 0b0000000,
-      UNLOCKED: 0b0010000,
-      LOCKING: 0b0100000,
-      UNLOCKING: 0b0110000,
-      LOCKING_STOP: 0b1000000,
-      UNLOCKING_STOP: 0b1010000,
-      NOT_FULLY_LOCKED: 0b1100000,  //Only EU lock type
-    };
 
     const battery = byte2 & 0b01111111; // %
     const calibration = byte7 & 0b10000000 ? true : false;
@@ -144,7 +135,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._operateLock(WoSmartLock.COMMAND_UNLOCK)
       .then((resBuf) => {
         const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.parseLockResult(code));
+        resolve(WoSmartLock.parseCommandResult(code));
       }).catch((error) => {
         reject(error);
       });
@@ -167,7 +158,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH)
       .then((resBuf) => {
         const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.parseLockResult(code));
+        resolve(WoSmartLock.parseCommandResult(code));
       }).catch((error) => {
         reject(error);
       });
@@ -190,7 +181,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._operateLock(WoSmartLock.COMMAND_LOCK)
       .then((resBuf) => {
         const code = (resBuf as Buffer).readUInt8(0);
-        resolve(WoSmartLock.parseLockResult(code));
+        resolve(WoSmartLock.parseCommandResult(code));
       }).catch((error) => {
         reject(error);
       });
@@ -246,26 +237,28 @@ export class WoSmartLock extends SwitchbotDevice {
 
   _operateLock(key:string, encrypt:boolean = true) {
     return new Promise<Buffer>(async (resolve, reject) => {
-      let req_buf;
+      let reqBuf;
 
       if (!encrypt) {
-        req_buf = Buffer.from(
+        reqBuf = Buffer.from(
           key.substring(0,2) + "000000" + key.substring(2), 'hex'
         );
       } else {
         const iv = await this._getIv();
-        req_buf = Buffer.from(
+        reqBuf = Buffer.from(
           key.substring(0,2) + this._key_id + Buffer.from(iv.subarray(0,2)).toString('hex') + this._encrypt(key.substring(2))
         , 'hex');
       }
 
-      this._command(req_buf)
-        .then((res_buf: unknown) => {
-          const code = (res_buf as Buffer).readUInt8(0);
-          if ((res_buf as Buffer).length >= 3 && (code === 0x01 || code === 0x06)) { //6 is success but low battery
+      this._command(reqBuf)
+        .then((resBuf: unknown) => {
+          const code = WoSmartLock.parseCommandResult((resBuf as Buffer).readUInt8(0));
+          if ((resBuf as Buffer).length >= 3 && code != WoSmartLock.CommandResult.ERROR) {
             let res;
             if (encrypt) {
-              res = Buffer.concat([(res_buf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]);
+              res = Buffer.concat(
+                [(resBuf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]
+              );
             } else {
               res = res_buf;
             }
