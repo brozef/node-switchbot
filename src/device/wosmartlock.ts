@@ -257,16 +257,16 @@ export class WoSmartLock extends SwitchbotDevice {
             let res;
             if (encrypt) {
               res = Buffer.concat(
-                [(resBuf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]
+                [(resBuf as Buffer).subarray(0, 1), this._decrypt((resBuf as Buffer).subarray(4))]
               );
             } else {
-              res = res_buf;
+              res = resBuf;
             }
             resolve(res as Buffer);
           } else {
             reject(
               new Error(
-                "The device returned an error: 0x" + (res_buf as Buffer).toString("hex")
+                "The device returned an error: 0x" + (resBuf as Buffer).toString("hex")
               )
             );
           }
