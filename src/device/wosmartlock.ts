@@ -24,35 +24,37 @@ export class WoSmartLock extends SwitchbotDevice {
     RESULT_SUCCESS_LOW_BATTERY: 0x06
   };
 
-  static parseCommandResult(code: number)
+  static validateResponse(res: Buffer)
   {
-    switch (code) {
-      case WoSmartLock.CommandResult.RESULT_SUCCESS:
-        return WoSmartLock.CommandResult.RESULT_SUCCESS;
-      case WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY:
-        return WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY;
+    if (res.length >= 3) {
+      switch (res.readUInt8(0)) {
+        case WoSmartLock.CommandResult.RESULT_SUCCESS:
+          return WoSmartLock.CommandResult.RESULT_SUCCESS;
+        case WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY:
+          return WoSmartLock.CommandResult.RESULT_SUCCESS_LOW_BATTERY;
+      }
     }
     return WoSmartLock.CommandResult.ERROR;
   }
 
   static getLockStatus(code: number) {
     switch (code) {
-        case 0b0000000:
-            return 'LOCKED';
-        case 0b0010000:
-            return 'UNLOCKED';
-        case 0b0100000:
-            return 'LOCKING';
-        case 0b0110000:
-            return 'UNLOCKING';
-        case 0b1000000:
-            return 'LOCKING_STOP';
-        case 0b1010000:
-            return 'UNLOCKING_STOP';
-        case 0b1100000: //Only EU lock type
-            return 'NOT_FULLY_LOCKED';
-        default:
-            return 'UNKNOWN';
+      case 0b0000000:
+        return 'LOCKED';
+      case 0b0010000:
+        return 'UNLOCKED';
+      case 0b0100000:
+        return 'LOCKING';
+      case 0b0110000:
+        return 'UNLOCKING';
+      case 0b1000000:
+        return 'LOCKING_STOP';
+      case 0b1010000:
+        return 'UNLOCKING_STOP';
+      case 0b1100000: //Only EU lock type
+        return 'NOT_FULLY_LOCKED';
+      default:
+        return 'UNKNOWN';
     }
   }
 
@@ -235,45 +237,52 @@ export class WoSmartLock extends SwitchbotDevice {
     return this._iv;
   }
 
-  _operateLock(key:string, encrypt:boolean = true) {
-    return new Promise<Buffer>(async (resolve, reject) => {
-      let reqBuf;
+  async _encryptedCommand<Buffer>(key: string) {
+    const iv = await this._getIv();
+    const req = Buffer.from(
+      key.substring(0, 2) + this._key_id + Buffer.from(iv.subarray(0, 2)).toString('hex') + this._encrypt(key.substring(2))
+    , 'hex');
+    
+    try {
+      const res: unknown = await this._command(req);
+      const code = WoSmartLock.validateResponse((res as Buffer));
 
-      if (!encrypt) {
-        reqBuf = Buffer.from(
-          key.substring(0,2) + "000000" + key.substring(2), 'hex'
+      if (code != WoSmartLock.CommandResult.ERROR) {
+        return Buffer.concat(
+          [(res as Buffer).subarray(0, 1), this._decrypt((res as Buffer).subarray(4))]
         );
       } else {
-        const iv = await this._getIv();
-        reqBuf = Buffer.from(
-          key.substring(0,2) + this._key_id + Buffer.from(iv.subarray(0,2)).toString('hex') + this._encrypt(key.substring(2))
-        , 'hex');
+        throw (
+          new Error(
+            "The device returned an error: 0x" + (res as Buffer).toString("hex")
+          )
+        );
       }
+    } catch(error: any) {
+      throw (error);
+    };
+  }
 
-      this._command(reqBuf)
-        .then((resBuf: unknown) => {
-          const code = WoSmartLock.parseCommandResult((resBuf as Buffer).readUInt8(0));
-          if ((resBuf as Buffer).length >= 3 && code != WoSmartLock.CommandResult.ERROR) {
-            let res;
-            if (encrypt) {
-              res = Buffer.concat(
-                [(resBuf as Buffer).subarray(0, 1), this._decrypt((resBuf as Buffer).subarray(4))]
-              );
-            } else {
-              res = resBuf;
-            }
-            resolve(res as Buffer);
-          } else {
-            reject(
-              new Error(
-                "The device returned an error: 0x" + (resBuf as Buffer).toString("hex")
-              )
-            );
-          }
-        })
-        .catch((error) => {
-          reject(error);
-        });
+  _operateLock(key: string, encrypt: boolean = true) {
+    //encrypted command
+    if (encrypt) {
+      return this._encryptedCommand(key); 
+    }
+
+    //unencypted command
+    return new Promise<any>((resolve, reject) => {
+      const req = Buffer.from(key.substring(0,2) + "000000" + key.substring(2), 'hex');
+      this._command(req).then(res => {
+        const code = WoSmartLock.validateResponse((res as Buffer));
+        
+        if (code != WoSmartLock.CommandResult.ERROR) {
+          reject(new Error(
+            "The device returned an error: 0x" + (res as Buffer).toString("hex")
+          ));
+        }
+      }).catch(error => {
+        reject(error);
+      });
     });
   }
 }
