@@ -2,8 +2,6 @@
  *
  * wosmartlock.ts: Switchbot BLE API registration.
  */
-import { Buffer } from 'buffer';
-
 import { SwitchbotDevice } from '../device.js';
 import * as Crypto from 'crypto';
 
@@ -35,7 +33,7 @@ export class WoSmartLock extends SwitchbotDevice {
     return WoSmartLock.LockResult.ERROR;
   }
 
-  static parseServiceData(manufacturerData, onlog) {
+  static parseServiceData(manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
     if (manufacturerData.length !== 12) {
       if (onlog && typeof onlog === 'function') {
         onlog(
@@ -47,6 +45,27 @@ export class WoSmartLock extends SwitchbotDevice {
     const byte2 = manufacturerData.readUInt8(2);
     const byte7 = manufacturerData.readUInt8(7);
     const byte8 = manufacturerData.readUInt8(8);
+
+    function getStatus(code: number): string {
+      switch (code) {
+        case LockStatus.LOCKED:
+          return 'LOCKED';
+        case LockStatus.UNLOCKED:
+          return 'UNLOCKED';
+        case LockStatus.LOCKING:
+          return 'LOCKING';
+        case LockStatus.UNLOCKING:
+          return 'UNLOCKING';
+        case LockStatus.LOCKING_STOP:
+          return 'LOCKING_STOP';
+        case LockStatus.UNLOCKING_STOP:
+          return 'UNLOCKING_STOP';
+        case LockStatus.NOT_FULLY_LOCKED:
+          return 'NOT_FULLY_LOCKED';
+        default:
+          return 'UNKNOWN';
+      }
+    }
 
     const LockStatus = {
       LOCKED: 0b0000000,
@@ -60,7 +79,7 @@ export class WoSmartLock extends SwitchbotDevice {
 
     const battery = byte2 & 0b01111111; // %
     const calibration = byte7 & 0b10000000 ? true : false;
-    const status = LockStatus[byte7 & 0b01110000];
+    const status = getStatus(byte7 & 0b01110000);
     const update_from_secondary_lock = byte7 & 0b00001000 ? true : false;
     const door_open = byte7 & 0b00000100 ? true : false;
     const double_lock_mode = byte8 & 0b10000000 ? true : false;
