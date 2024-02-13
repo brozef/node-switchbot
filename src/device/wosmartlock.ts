@@ -18,11 +18,28 @@ export class WoSmartLock extends SwitchbotDevice {
   static COMMAND_UNLOCK_NO_UNLATCH = '570f4e010110a0';
   static COMMAND_LOCK = '570f4e01011000';
 
+  static LockResult = {
+    ERROR: 0x00,
+    RESULT_SUCCESS: 0x01,
+    RESULT_SUCCESS_LOW_BATTERY: 0x06
+  };
+
+  static parseLockResult(code)
+  {
+    if (code === WoSmartLock.LockResult.RESULT_SUCCESS) {
+      return WoSmartLock.LockResult.RESULT_SUCCESS;
+    }
+    else if (code == WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY) {
+      return WoSmartLock.LockResult.RESULT_SUCCESS_LOW_BATTERY;
+    }
+    return WoSmartLock.LockResult.ERROR;
+  }
+
   static parseServiceData(manufacturerData, onlog) {
-    if (manufacturerData.length !== 6) {
+    if (manufacturerData.length !== 12) {
       if (onlog && typeof onlog === 'function') {
         onlog(
-          `[parseServiceDataForWoSmartLock] Buffer length ${manufacturerData.length} !== 6!`,
+          `[parseServiceDataForWoSmartLock] Buffer length ${manufacturerData.length} !== 12!`,
         );
       }
       return null;
@@ -30,7 +47,6 @@ export class WoSmartLock extends SwitchbotDevice {
     const byte2 = manufacturerData.readUInt8(2);
     const byte7 = manufacturerData.readUInt8(7);
     const byte8 = manufacturerData.readUInt8(8);
-
 
     const LockStatus = {
       LOCKED: 0b0000000,
@@ -85,6 +101,7 @@ export class WoSmartLock extends SwitchbotDevice {
    * - void
    * ---------------------------------------------------------------- */
   setKey(keyId, encryptionKey) {
+    this._iv = null;
     this._key_id = keyId;
     this._encryption_key = Buffer.from(encryptionKey, 'hex');
   }
@@ -98,25 +115,41 @@ export class WoSmartLock extends SwitchbotDevice {
    *
    * [Return value]
    * - Promise object
-   *   Nothing will be passed to the `resolve()`.
+   *   WoSmartLock.LockResult will be passed to the `resolve()`.
    * ---------------------------------------------------------------- */
   unlock() {
-    return this._operateLock(WoSmartLock.COMMAND_UNLOCK);
+    return new Promise<number>((resolve, reject) => {
+      this._operateLock(WoSmartLock.COMMAND_UNLOCK)
+      .then((resBuf) => {
+        const code = (resBuf as Buffer).readUInt8(0);
+        resolve(WoSmartLock.parseLockResult(code));
+      }).catch((error) => {
+        reject(error);
+      });
+    });
   }
 
     /* ------------------------------------------------------------------
-   * unlock_no_unlatch()
-   * - Unlock the Smart Lock without unlatching door (eu version only)
+   * unlockNoUnlatch()
+   * - Unlock the Smart Lock without unlatching door
    *
    * [Arguments]
    * - none
    *
    * [Return value]
    * - Promise object
-   *   Nothing will be passed to the `resolve()`.
+   *   WoSmartLock.LockResult will be passed to the `resolve()`.
    * ---------------------------------------------------------------- */
-  unlock_no_unlatch() {
-    return this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH);
+  unlockNoUnlatch() {
+    return new Promise<number>((resolve, reject) => {
+      this._operateLock(WoSmartLock.COMMAND_UNLOCK_NO_UNLATCH)
+      .then((resBuf) => {
+        const code = (resBuf as Buffer).readUInt8(0);
+        resolve(WoSmartLock.parseLockResult(code));
+      }).catch((error) => {
+        reject(error);
+      });
+    });
   }
 
   /* ------------------------------------------------------------------
@@ -128,10 +161,18 @@ export class WoSmartLock extends SwitchbotDevice {
    *
    * [Return value]
    * - Promise object
-   *   Nothing will be passed to the `resolve()`.
+   *   WoSmartLock.LockResult will be passed to the `resolve()`.
    * ---------------------------------------------------------------- */
   lock() {
-    return this._operateLock(WoSmartLock.COMMAND_LOCK);
+    return new Promise<number>((resolve, reject) => {
+      this._operateLock(WoSmartLock.COMMAND_LOCK)
+      .then((resBuf) => {
+        const code = (resBuf as Buffer).readUInt8(0);
+        resolve(WoSmartLock.parseLockResult(code));
+      }).catch((error) => {
+        reject(error);
+      });
+    });
   }
 
     /* ------------------------------------------------------------------
@@ -143,10 +184,17 @@ export class WoSmartLock extends SwitchbotDevice {
    *
    * [Return value]
    * - Promise object
-   *   resolves buffer to be parsed
+   *   state object will be passed to the `resolve()`
    * ---------------------------------------------------------------- */
   info() {
-    return this._operateLock(WoSmartLock.COMMAND_LOCK_INFO);
+    return new Promise((resolve, reject) => {
+      this._operateLock(WoSmartLock.COMMAND_LOCK_INFO)
+      .then(resBuf => {
+        resolve(WoSmartLock.parseServiceData(resBuf, () => {}));
+      }).catch((error) => {
+        reject(error);
+      });
+    });
   }
   
   _encrypt(str) {
@@ -185,7 +233,7 @@ export class WoSmartLock extends SwitchbotDevice {
       this._command(req_buf)
         .then((res_buf: unknown) => {
           const code = (res_buf as Buffer).readUInt8(0);
-          if (code === 0x01) {
+          if ((res_buf as Buffer).length >= 3 && (code === 0x01 || code === 0x06)) { //6 is success but low battery
             let res;
             if (encrypt) {
               res = Buffer.concat([(res_buf as Buffer).subarray(0, 1), this._decrypt((res_buf as Buffer).subarray(4))]);
