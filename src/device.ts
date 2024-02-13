@@ -287,7 +287,7 @@ export class SwitchbotDevice {
 
   _subscribe() {
     return new Promise<void>((resolve, reject) => {
-      const char = this._chars?.notify;
+      const char = this._chars ? this._chars.notify : null;
       if (!char) {
         reject(new Error('No notify characteristic was found.'));
         return;
@@ -307,7 +307,7 @@ export class SwitchbotDevice {
 
   _unsubscribe() {
     return new Promise<void>((resolve) => {
-      const char = this._chars?.notify;
+      const char = this._chars ? this._chars.notify : null;
       if (!char) {
         resolve();
         return;
@@ -381,7 +381,7 @@ export class SwitchbotDevice {
       let name = '';
       this._connect()
         .then(() => {
-          if (!this._chars?.device) {
+          if (!this._chars || !this._chars.device) {
             // Some models of Bot don't seem to support this characteristic UUID
             throw new Error(
               'The device does not support the characteristic UUID 0x' +
@@ -435,7 +435,7 @@ export class SwitchbotDevice {
       const buf = Buffer.from(name, 'utf8');
       this._connect()
         .then(() => {
-          if (!this._chars?.device) {
+          if (!this._chars || !this._chars.device) {
             // Some models of Bot don't seem to support this characteristic UUID
             throw new Error(
               'The device does not support the characteristic UUID 0x' +
@@ -471,7 +471,7 @@ export class SwitchbotDevice {
 
       this._connect()
         .then(() => {
-          if (!this._chars?.write) {
+          if (!this._chars || !this._chars.write) {
             return reject(new Error('No characteristics available.'));
           }
           return this._write(this._chars.write, req_buf);
