@@ -68,7 +68,7 @@ export class WoSmartLock extends SwitchbotDevice {
 
     // adv data needs both service data and manufacturer data
     // byte var names based on documentation
-    const byte2 = data.readUInt8(2);
+    const byte2 = serviceData.readUInt8(2);
     const byte15 = manufacturerData.readUInt8(9);
     const byte16 = manufacturerData.readUInt8(10);
 
