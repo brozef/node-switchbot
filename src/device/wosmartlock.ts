@@ -56,7 +56,7 @@ export class WoSmartLock extends SwitchbotDevice {
     }
   }
 
-  static parseServiceData(manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
+  static parseServiceData(data: Buffer, manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
     if (manufacturerData.length < 8) {
       if (onlog && typeof onlog === 'function') {
         onlog(
@@ -65,13 +65,14 @@ export class WoSmartLock extends SwitchbotDevice {
       }
       return null;
     }
-    const byte2 = manufacturerData.readUInt8(2);
+
+    const byte2 = data.readUInt8(2);
     const byte7 = manufacturerData.readUInt8(7);
     const byte8 = manufacturerData.readUInt8(8);
 
     const battery = byte2 & 0b01111111; // %
     const calibration = byte7 & 0b10000000 ? true : false;
-    const status = WoSmartLock.getLockStatus(byte7 & 0b01110000);
+    const status = WoSmartLock.getLockStatus((byte7 & 0b01110000) >> 4);
     const update_from_secondary_lock = byte7 & 0b00001000 ? true : false;
     const door_open = byte7 & 0b00000100 ? true : false;
     const double_lock_mode = byte8 & 0b10000000 ? true : false;
@@ -80,7 +81,7 @@ export class WoSmartLock extends SwitchbotDevice {
     const auto_lock_paused = byte8 & 0b00000010 ? true : false;
     const night_latch = manufacturerData.length > 9 ? (manufacturerData.readUInt8(9) & 0b00000001 ? true : false) : false;
 
-    const data = {
+    const result = {
       model: 'o',
       modelName: 'WoSmartLock',
       battery: battery,
@@ -95,7 +96,7 @@ export class WoSmartLock extends SwitchbotDevice {
       night_latch: night_latch,
     };
 
-    return data;
+    return result;
   }
 
   constructor(peripheral: Peripheral, noble: any) {
