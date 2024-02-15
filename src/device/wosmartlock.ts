@@ -56,7 +56,7 @@ export class WoSmartLock extends SwitchbotDevice {
     }
   }
 
-  static parseServiceData(data: Buffer, manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
+  static parseServiceData(serviceData: Buffer, manufacturerData: Buffer, onlog: ((message: string) => void) | undefined) {
     if (manufacturerData.length < 8) {
       if (onlog && typeof onlog === 'function') {
         onlog(
@@ -66,22 +66,24 @@ export class WoSmartLock extends SwitchbotDevice {
       return null;
     }
 
+    // adv data needs both service data and manufacturer data
+    // byte var names based on documentation
     const byte2 = data.readUInt8(2);
-    const byte7 = manufacturerData.readUInt8(7);
-    const byte8 = manufacturerData.readUInt8(8);
+    const byte15 = manufacturerData.readUInt8(9);
+    const byte16 = manufacturerData.readUInt8(10);
 
     const battery = byte2 & 0b01111111; // %
-    const calibration = byte7 & 0b10000000 ? true : false;
-    const status = WoSmartLock.getLockStatus((byte7 & 0b01110000) >> 4);
-    const update_from_secondary_lock = byte7 & 0b00001000 ? true : false;
-    const door_open = byte7 & 0b00000100 ? true : false;
-    const double_lock_mode = byte8 & 0b10000000 ? true : false;
-    const unclosed_alarm = byte8 & 0b00100000 ? true : false;
-    const unlocked_alarm = byte8 & 0b00010000 ? true : false;
-    const auto_lock_paused = byte8 & 0b00000010 ? true : false;
-    const night_latch = manufacturerData.length > 9 ? (manufacturerData.readUInt8(9) & 0b00000001 ? true : false) : false;
+    const calibration = byte15 & 0b10000000 ? true : false;
+    const status = WoSmartLock.getLockStatus((byte15 & 0b01110000) >> 4);
+    const update_from_secondary_lock = byte15 & 0b00001000 ? true : false;
+    const door_open = byte15 & 0b00000100 ? true : false;
+    const double_lock_mode = byte16 & 0b10000000 ? true : false;
+    const unclosed_alarm = byte16 & 0b00100000 ? true : false;
+    const unlocked_alarm = byte16 & 0b00010000 ? true : false;
+    const auto_lock_paused = byte16 & 0b00000010 ? true : false;
+    const night_latch = manufacturerData.length > 11 && manufacturerData.readUInt8(11) & 0b00000001 ? true : false;
 
-    const result = {
+    const data = {
       model: 'o',
       modelName: 'WoSmartLock',
       battery: battery,
@@ -96,7 +98,7 @@ export class WoSmartLock extends SwitchbotDevice {
       night_latch: night_latch,
     };
 
-    return result;
+    return data;
   }
 
   constructor(peripheral: Peripheral, noble: any) {
